@@ -3,6 +3,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+#[allow(dead_code)]
+#[derive(Debug)]
 pub enum RESP {
     SimpleStrings(String),
     SimpleErrors(String),
