@@ -3,13 +3,13 @@ use anyhow::Result;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
-pub async fn del_cmd(keys: Vec<String>, _db: &DB, socket: &mut TcpStream) -> Result<()> {
+pub async fn exists_cmd(keys: Vec<String>, _db: &DB, socket: &mut TcpStream) -> Result<()> {
     let mut removed_count = 0;
     {
-        let mut db = _db.write().await;
+        let db = _db.read().await;
 
         for key in keys {
-            if db.remove(&key).is_some() {
+            if db.contains_key(&key) {
                 removed_count += 1;
             }
         }
