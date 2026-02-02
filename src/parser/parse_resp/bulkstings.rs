@@ -1,4 +1,4 @@
-use crate::{model::types::RESP, util::find_crlf};
+use crate::{model::RESP, util::find_crlf};
 use anyhow::Result;
 
 pub fn parse_bulk_sting(buf: &[u8], offset: &mut usize) -> Result<Option<(RESP, usize)>> {
@@ -25,8 +25,5 @@ pub fn parse_bulk_sting(buf: &[u8], offset: &mut usize) -> Result<Option<(RESP, 
     let data = buf[len_end + 2..bulk_str_end].to_vec();
     *offset = bulk_str_end + 2;
 
-    Ok(Some((
-        RESP::BulkStrings(Some(data)),
-        *offset - start,
-    )))
+    Ok(Some((RESP::BulkStrings(Some(data)), *offset - start)))
 }

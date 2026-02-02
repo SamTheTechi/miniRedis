@@ -4,7 +4,7 @@ mod integers;
 mod simple_errors;
 mod simple_strings;
 
-use crate::model::types::RESP;
+use crate::model::RESP;
 use crate::parser::parse_resp::{
     arrays::parse_array, bulkstings::parse_bulk_sting, integers::parse_integers,
     simple_errors::parse_simple_error, simple_strings::parse_simple_string,

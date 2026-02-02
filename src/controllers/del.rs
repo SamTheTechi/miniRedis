@@ -1,4 +1,4 @@
-use crate::model::types::DB;
+use crate::model::DB;
 use anyhow::Result;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;

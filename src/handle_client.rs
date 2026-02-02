@@ -1,13 +1,13 @@
 use crate::{
-    controllers::{del_cmd, exists_cmd, get_cmd, set_cmd},
-    model::types::{Command, DB, RESP},
+    controllers::{del_cmd, exists_cmd, expire_cmd, get_cmd, set_cmd, ttl_cmd},
+    model::{Command, DB, Heap, RESP},
     parser::{parse_command, parse_resp},
 };
 use anyhow::Result;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-pub async fn process_client(mut socket: TcpStream, mut _db: DB) -> Result<()> {
+pub async fn process_client(mut socket: TcpStream, mut _db: DB, mut _heap: Heap) -> Result<()> {
     let mut buf = vec![0u8; 4096];
 
     loop {
@@ -52,9 +52,11 @@ pub async fn process_client(mut socket: TcpStream, mut _db: DB) -> Result<()> {
         match command {
             Command::PING => socket.write_all(b"+PONG\r\n").await?,
             Command::SET { key, value } => set_cmd(key, value, &_db, &mut socket).await?,
-            Command::GET { key } => get_cmd(key, &_db, &mut socket).await?,
+            Command::GET { key } => get_cmd(key, &_db, &mut _heap, &mut socket).await?,
             Command::DEL { keys } => del_cmd(keys, &_db, &mut socket).await?,
             Command::EXISTS { keys } => exists_cmd(keys, &_db, &mut socket).await?,
+            Command::EXPIRE { key, sec } => expire_cmd(key, sec, &_db, &mut socket).await?,
+            Command::TTL { key } => ttl_cmd(key, &_db, &mut _heap, &mut socket).await?,
         }
     }
     Ok(())

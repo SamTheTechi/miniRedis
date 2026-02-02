@@ -1,5 +1,5 @@
 use super::parse_resp;
-use crate::{model::types::RESP, util::find_crlf};
+use crate::{model::RESP, util::find_crlf};
 use anyhow::Result;
 
 pub fn parse_array(buf: &[u8], offset: &mut usize) -> Result<Option<(RESP, usize)>> {

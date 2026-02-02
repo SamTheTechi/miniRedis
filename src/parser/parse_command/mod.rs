@@ -1,4 +1,4 @@
-use crate::model::types::{Command, RESP};
+use crate::model::{Command, Entry, RESP, Value};
 use crate::util::bulk_to_string;
 use anyhow::{Ok, Result};
 
@@ -51,19 +51,24 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
 
             let key = match &items[1] {
                 RESP::BulkStrings(Some(b)) => {
-                    let Some(bs) = bulk_to_string(b) else {
-                        return Err(anyhow::anyhow!("invalid key"));
-                    };
-                    bs
+                    bulk_to_string(b).ok_or_else(|| anyhow::anyhow!("invalid key"))?
                 }
-                _ => {
-                    return Err(anyhow::anyhow!("invalid key"));
+                _ => Err(anyhow::anyhow!("invalid key"))?,
+            };
+
+            let value = match &items[2] {
+                RESP::BulkStrings(Some(b)) => {
+                    bulk_to_string(b).ok_or_else(|| anyhow::anyhow!("invalid key"))?
                 }
+                _ => Err(anyhow::anyhow!("invalid key"))?,
             };
 
             Ok(Command::SET {
                 key,
-                value: items[2].clone(),
+                value: Entry {
+                    value: Value::String(value.into_bytes()),
+                    expires_at: None,
+                },
             })
         }
         "DEL" => {
@@ -117,6 +122,53 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
             }
 
             Ok(Command::EXISTS { keys })
+        }
+        "EXPIRE" => {
+            let len = items.len();
+            if len < 2 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'exists' command"
+                ));
+            }
+
+            let key = match &items[1] {
+                RESP::BulkStrings(Some(b)) => {
+                    bulk_to_string(b).ok_or_else(|| anyhow::anyhow!("invalid key"))?
+                }
+                _ => Err(anyhow::anyhow!("invalid key"))?,
+            };
+
+            let sec_str = match &items[2] {
+                RESP::BulkStrings(Some(b)) => {
+                    bulk_to_string(b).ok_or_else(|| anyhow::anyhow!("invalid key"))?
+                }
+                _ => Err(anyhow::anyhow!("invalid key"))?,
+            };
+
+            let sec = sec_str.parse().unwrap();
+
+            Ok(Command::EXPIRE { key, sec })
+        }
+        "TTL" => {
+            if items.len() != 2 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'ttl' command"
+                ));
+            }
+
+            let key = match &items[1] {
+                RESP::BulkStrings(Some(b)) => {
+                    let Some(bs) = bulk_to_string(b) else {
+                        return Err(anyhow::anyhow!("invalid key"));
+                    };
+                    bs
+                }
+                _ => {
+                    return Err(anyhow::anyhow!("invalid key"));
+                }
+            };
+
+            Ok(Command::TTL { key })
         }
         _ => Err(anyhow::anyhow!("unknown command")),
     }

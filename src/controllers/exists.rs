@@ -1,4 +1,5 @@
-use crate::model::types::DB;
+use crate::model::DB;
+use crate::util::is_expired;
 use anyhow::Result;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -9,8 +10,10 @@ pub async fn exists_cmd(keys: Vec<String>, _db: &DB, socket: &mut TcpStream) -> 
         let db = _db.read().await;
 
         for key in keys {
-            if db.contains_key(&key) {
-                removed_count += 1;
+            if let Some(entry) = db.get(&key) {
+                if !is_expired(entry) {
+                    removed_count += 1;
+                }
             }
         }
     }
