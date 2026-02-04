@@ -1,5 +1,5 @@
 use crate::{
-    controllers::{del_cmd, exists_cmd, expire_cmd, get_cmd, set_cmd, ttl_cmd},
+    controllers,
     model::{Command, DB, Heap, RESP},
     parser::{parse_command, parse_resp},
 };
@@ -51,12 +51,31 @@ pub async fn process_client(mut socket: TcpStream, mut _db: DB, mut _heap: Heap)
 
         match command {
             Command::PING => socket.write_all(b"+PONG\r\n").await?,
-            Command::SET { key, value } => set_cmd(key, value, &_db, &mut socket).await?,
-            Command::GET { key } => get_cmd(key, &_db, &mut _heap, &mut socket).await?,
-            Command::DEL { keys } => del_cmd(keys, &_db, &mut socket).await?,
-            Command::EXISTS { keys } => exists_cmd(keys, &_db, &mut socket).await?,
-            Command::EXPIRE { key, sec } => expire_cmd(key, sec, &_db, &mut socket).await?,
-            Command::TTL { key } => ttl_cmd(key, &_db, &mut _heap, &mut socket).await?,
+            Command::SET { key, value } => {
+                controllers::set_cmd(key, value, &_db, &mut socket).await?
+            }
+            Command::SETEX { key, value } => {
+                controllers::set_cmd(key, value, &_db, &mut socket).await?
+            }
+            Command::PSETEX { key, value } => {
+                controllers::set_cmd(key, value, &_db, &mut socket).await?
+            }
+            Command::GET { key } => {
+                controllers::get_cmd(key, &_db, &mut _heap, &mut socket).await?
+            }
+            Command::DEL { keys } => controllers::del_cmd(keys, &_db, &mut socket).await?,
+            Command::EXISTS { keys } => controllers::exists_cmd(keys, &_db, &mut socket).await?,
+            Command::EXPIRE { key, sec } => {
+                controllers::expire_cmd(key, sec, &_db, &mut socket).await?
+            }
+            Command::TTL { key } => {
+                controllers::ttl_cmd(key, &_db, &mut _heap, &mut socket).await?
+            }
+            Command::PTTL { key } => {
+                controllers::pttl_cmd(key, &_db, &mut _heap, &mut socket).await?
+            }
+            // Command::LPUSH { key, value } => controllers::lpush_cmd(key, value, &_db, &mut socket).await?,
+            _ => socket.write_all(b"+wokring").await?,
         }
     }
     Ok(())
