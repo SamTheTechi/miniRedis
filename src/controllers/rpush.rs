@@ -1,39 +1,54 @@
-use crate::model::{DB, Heap, MinHeap};
-use crate::util::is_expired;
+use crate::model::{DB, Entry, Value};
 use anyhow::Result;
+use std::collections::VecDeque;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
 pub async fn rpush_cmd(
     key: String,
+    values: Vec<Vec<u8>>,
     _db: &DB,
-    _heap: &mut Heap,
     socket: &mut TcpStream,
 ) -> Result<()> {
-    let db = _db.read().await;
+    let mut db = _db.write().await;
 
-    match db.get(&key) {
+    let len = match db.get_mut(&key) {
         Some(entry) => {
-            if is_expired(&entry) {
-                let mut heap = _heap.lock().await;
+            let list = match entry.value.as_list_mut() {
+                Some(l) => l,
+                None => {
+                    socket
+                        .write_all(b"-WRONGTYPE key holds wrong kind of value\r\n")
+                        .await?;
+                    return Ok(());
+                }
+            };
 
-                let val = MinHeap {
-                    key: key.clone(),
-                    expires_at: entry.expires_at.unwrap(),
-                };
-
-                heap.push(val);
-
-                socket.write_all(b"$-1\r\n").await?;
+            for v in values {
+                list.push_back(v);
             }
-
-            let resp = entry.value.to_resp_bytes();
-            socket.write_all(&resp).await?;
+            list.len()
         }
         None => {
-            socket.write_all(b"$-1\r\n").await?;
+            let mut list = VecDeque::new();
+            for v in values {
+                list.push_back(v);
+            }
+
+            let len = list.len();
+
+            db.insert(
+                key,
+                Entry {
+                    value: Value::List(list),
+                    expires_at: None,
+                },
+            );
+            len
         }
-    }
+    };
+
+    socket.write_all(format!(":{}\r\n", len).as_bytes()).await?;
 
     Ok(())
 }

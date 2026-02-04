@@ -1,9 +1,8 @@
 use crate::{
-    model::{Command, Entry, RESP, Value},
+    model::{Command, RESP},
     util::{bulk_to_string, expect_bulk},
 };
 use anyhow::{Ok, Result};
-use std::time::{Duration, Instant};
 
 pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
     if items.is_empty() {
@@ -47,10 +46,7 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
 
             Ok(Command::SET {
                 key,
-                value: Entry {
-                    value: Value::String(value.into_bytes()),
-                    expires_at: None,
-                },
+                value: value.into_bytes(),
             })
         }
         "SETEX" => {
@@ -66,12 +62,10 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
 
             let sec: u64 = sec_str.parse().unwrap();
 
-            Ok(Command::SET {
+            Ok(Command::SETEX {
                 key,
-                value: Entry {
-                    value: Value::String(value.into_bytes()),
-                    expires_at: Some(Instant::now() + Duration::from_secs(sec)),
-                },
+                value: value.into_bytes(),
+                seconds: sec,
             })
         }
         "PSETEX" => {
@@ -87,12 +81,10 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
 
             let sec: u64 = sec_str.parse().unwrap();
 
-            Ok(Command::SET {
+            Ok(Command::PSETEX {
                 key,
-                value: Entry {
-                    value: Value::String(value.into_bytes()),
-                    expires_at: Some(Instant::now() + Duration::from_millis(sec)),
-                },
+                value: value.into_bytes(),
+                seconds: sec,
             })
         }
         "DEL" => {
@@ -140,7 +132,7 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
 
             let sec = sec_str.parse().unwrap();
 
-            Ok(Command::EXPIRE { key, sec })
+            Ok(Command::EXPIRE { key, seconds: sec })
         }
         "TTL" => {
             if items.len() != 2 {
@@ -163,6 +155,66 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
             let key = expect_bulk(&items, 1, "key")?;
 
             Ok(Command::TTL { key })
+        }
+        "LPUSH" => {
+            let len = items.len();
+            if len < 3 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'lpush' command"
+                ));
+            }
+
+            let key = expect_bulk(&items, 1, "key")?;
+            let mut values: Vec<Vec<u8>> = Vec::new();
+
+            for i in 1..len {
+                let value = expect_bulk(&items, i, "key")?;
+                values.push(value.into_bytes());
+            }
+
+            Ok(Command::LPUSH { key, values })
+        }
+        "RPUSH" => {
+            let len = items.len();
+            if len < 3 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'rpush' command"
+                ));
+            }
+
+            let key = expect_bulk(&items, 1, "key")?;
+            let mut values: Vec<Vec<u8>> = Vec::new();
+
+            for i in 1..len {
+                let value = expect_bulk(&items, i, "key")?;
+                values.push(value.into_bytes());
+            }
+
+            Ok(Command::LPUSH { key, values })
+        }
+        "LPOP" => {
+            let len = items.len();
+            if len != 2 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'lpop' command"
+                ));
+            }
+
+            let key = expect_bulk(&items, 1, "key")?;
+
+            Ok(Command::LPOP { key })
+        }
+        "RPOP" => {
+            let len = items.len();
+            if len != 2 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'rpop' command"
+                ));
+            }
+
+            let key = expect_bulk(&items, 1, "key")?;
+
+            Ok(Command::RPOP { key })
         }
         _ => Err(anyhow::anyhow!("unknown command")),
     }

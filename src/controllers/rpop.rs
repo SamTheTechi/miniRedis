@@ -4,12 +4,7 @@ use anyhow::Result;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
-pub async fn rpop_cmd(
-    key: String,
-    _db: &DB,
-    _heap: &mut Heap,
-    socket: &mut TcpStream,
-) -> Result<()> {
+pub async fn rpop_cmd(key: String, _db: &DB, socket: &mut TcpStream) -> Result<()> {
     let db = _db.read().await;
 
     match db.get(&key) {

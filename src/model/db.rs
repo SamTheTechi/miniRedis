@@ -21,7 +21,36 @@ pub struct Entry {
 
 pub type DB = Arc<RwLock<HashMap<String, Entry>>>;
 
+#[allow(dead_code)]
 impl Value {
+    pub fn as_string(&self) -> Option<&Vec<u8>> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_string_mut(&mut self) -> Option<&mut Vec<u8>> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_list(&self) -> Option<&VecDeque<Vec<u8>>> {
+        match self {
+            Value::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    pub fn as_list_mut(&mut self) -> Option<&mut VecDeque<Vec<u8>>> {
+        match self {
+            Value::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
     pub fn to_resp_bytes(&self) -> Vec<u8> {
         match self {
             Value::String(bytes) => {

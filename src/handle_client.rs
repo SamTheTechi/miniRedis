@@ -54,19 +54,23 @@ pub async fn process_client(mut socket: TcpStream, mut _db: DB, mut _heap: Heap)
             Command::SET { key, value } => {
                 controllers::set_cmd(key, value, &_db, &mut socket).await?
             }
-            Command::SETEX { key, value } => {
-                controllers::set_cmd(key, value, &_db, &mut socket).await?
-            }
-            Command::PSETEX { key, value } => {
-                controllers::set_cmd(key, value, &_db, &mut socket).await?
-            }
+            Command::SETEX {
+                key,
+                value,
+                seconds,
+            } => controllers::setex_cmd(key, value, seconds, &_db, &mut socket).await?,
+            Command::PSETEX {
+                key,
+                value,
+                seconds,
+            } => controllers::psetex_cmd(key, value, seconds, &_db, &mut socket).await?,
             Command::GET { key } => {
                 controllers::get_cmd(key, &_db, &mut _heap, &mut socket).await?
             }
             Command::DEL { keys } => controllers::del_cmd(keys, &_db, &mut socket).await?,
             Command::EXISTS { keys } => controllers::exists_cmd(keys, &_db, &mut socket).await?,
-            Command::EXPIRE { key, sec } => {
-                controllers::expire_cmd(key, sec, &_db, &mut socket).await?
+            Command::EXPIRE { key, seconds } => {
+                controllers::expire_cmd(key, seconds, &_db, &mut socket).await?
             }
             Command::TTL { key } => {
                 controllers::ttl_cmd(key, &_db, &mut _heap, &mut socket).await?
@@ -74,7 +78,14 @@ pub async fn process_client(mut socket: TcpStream, mut _db: DB, mut _heap: Heap)
             Command::PTTL { key } => {
                 controllers::pttl_cmd(key, &_db, &mut _heap, &mut socket).await?
             }
-            // Command::LPUSH { key, value } => controllers::lpush_cmd(key, value, &_db, &mut socket).await?,
+            Command::LPUSH { key, values } => {
+                controllers::lpush_cmd(key, values, &_db, &mut socket).await?
+            }
+            Command::RPUSH { key, values } => {
+                controllers::rpush_cmd(key, values, &_db, &mut socket).await?
+            }
+            Command::LPOP { key } => controllers::lpop_cmd(key, &_db, &mut socket).await?,
+            Command::RPOP { key } => controllers::rpop_cmd(key, &_db, &mut socket).await?,
             _ => socket.write_all(b"+wokring").await?,
         }
     }
