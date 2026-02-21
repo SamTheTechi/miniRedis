@@ -13,17 +13,15 @@ pub fn parse_array(buf: &[u8], offset: &mut usize) -> Result<Option<(RESP, usize
 
     *offset = count_end + 2;
     let mut items: Vec<RESP> = Vec::with_capacity(count);
-    let mut items_size = 0;
 
     for _ in 0..count {
         match parse_resp(buf, offset)? {
-            Some((r, c)) => {
+            Some((r, _c)) => {
                 items.push(r);
-                items_size += c;
             }
             None => return Ok(None),
         }
     }
 
-    Ok(Some((RESP::Arrays(items), items_size)))
+    Ok(Some((RESP::Arrays(items), *offset - start)))
 }

@@ -20,8 +20,30 @@ The following commands are supported:
 -   `PING`: Returns `PONG`. Used to test if the connection is still alive.
 -   `GET <key>`: Returns the value of `<key>`. If the key does not exist, `nil` is returned.
 -   `SET <key> <value>`: Sets `<key>` to hold the string `<value>`.
+-   `SETEX <key> <seconds> <value>`: Set value and expire after seconds.
+-   `PSETEX <key> <milliseconds> <value>`: Set value and expire after milliseconds.
 -   `DEL <key> [key ...]` : Removes the specified keys. A key is ignored if it does not exist.
 -   `EXISTS <key> [key ...]` : Returns the number of `<key>`s that exist.
+-   `EXPIRE <key> <seconds>`: Set a key's time to live.
+-   `PERSIST <key>`: Remove a key's TTL.
+-   `TTL <key>` / `PTTL <key>`: Return remaining time to live.
+-   `TYPE <key>`: Return key type.
+-   `LPUSH <key> <value ...>` / `RPUSH <key> <value ...>`: Push values to a list.
+-   `LPOP <key>` / `RPOP <key>`: Pop values from a list.
+-   `CONFIG GET/SET`: Runtime configuration for `maxmemory` and `maxmemory-policy`.
+-   `INFO`: Basic server stats.
+-   `QUIT`: Close the connection.
+
+Eviction and memory limits:
+
+-   `maxmemory` (approximate) with `maxmemory-policy`:
+    -   `noeviction`
+    -   `allkeys-lru` (approximate)
+    -   `volatile-ttl`
+
+Protocol support:
+
+-   RESP only (inline protocol is not supported)
 
 ## RESP Implementation
 
@@ -51,6 +73,28 @@ The server implements a parser for the following RESP data types:
     cargo run
     ```
 The server will start and listen on `127.0.0.1:6379`.
+
+### Command-line options
+
+When using `cargo run`, arguments to the server must come after `--`:
+
+```sh
+cargo run -- -h
+```
+
+If you run the compiled binary directly, no `--` is needed:
+
+```sh
+./target/debug/miniRedis -h
+```
+
+Supported options:
+
+- `--bind <ip>`: bind address (default `127.0.0.1`)
+- `--port <port>`: port (default `6379`)
+- `--maxmemory <bytes>`: approximate max memory (default `0`, disabled)
+- `--maxmemory-policy <noeviction|allkeys-lru|volatile-ttl>`
+- `-h` / `--help`: show help
 
 ## Usage
 
@@ -85,17 +129,26 @@ $ redis-cli GET mykey
 │   ├── main.rs            # Entry point, sets up the TCP listener and shared state
 │   ├── handle_client.rs   # Main loop for handling a client connection
 │   ├── model
-│   │   └── types.rs       # Core data structures (DB, Command, RESP)
+│   │   ├── db.rs          # DB types and values
+│   │   ├── command.rs     # Command enum
+│   │   ├── resp.rs        # RESP enum
+│   │   └── min_heap.rs    # TTL min-heap
 │   ├── parser
 │   │   ├── mod.rs         # Exports the parser modules
 │   │   ├── parse_resp     # Low-level RESP parsing functions
 │   │   └── parse_command  # High-level command parsing from RESP Arrays
+│   │   └── parse_inline   # Inline command parsing
 │   ├── controllers
 │   │   ├── mod.rs         # Exports the command controller modules
 │   │   ├── get.rs         # GET command implementation
 │   │   ├── set.rs         # SET command implementation
 │   │   ├── del.rs         # DEL command implementation
 │   │   └── exists.rs      # EXISTS command implementation
+│   │   ├── config.rs      # CONFIG GET/SET
+│   │   ├── info.rs        # INFO
+│   │   ├── persist.rs     # PERSIST
+│   │   └── type_cmd.rs    # TYPE
+│   ├── lru.rs             # Approximate LRU + maxmemory eviction
 │   └── util               # Utility functions
 ├── Cargo.toml             # Project dependencies and metadata
 └── README.md              # This file

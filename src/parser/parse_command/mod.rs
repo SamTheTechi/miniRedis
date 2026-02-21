@@ -23,6 +23,7 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
 
     match cmd.as_str() {
         "PING" => Ok(Command::PING),
+        "QUIT" => Ok(Command::QUIT),
         "GET" => {
             if items.len() != 2 {
                 return Err(anyhow::anyhow!(
@@ -42,7 +43,7 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
             }
 
             let key = expect_bulk(&items, 1, "key")?;
-            let value = expect_bulk(&items, 3, "value")?;
+            let value = expect_bulk(&items, 2, "value")?;
 
             Ok(Command::SET {
                 key,
@@ -121,9 +122,9 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
         }
         "EXPIRE" => {
             let len = items.len();
-            if len < 2 {
+            if len != 3 {
                 return Err(anyhow::anyhow!(
-                    "wrong number of arguments for 'exists' command"
+                    "wrong number of arguments for 'expire' command"
                 ));
             }
 
@@ -133,6 +134,17 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
             let sec = sec_str.parse().unwrap();
 
             Ok(Command::EXPIRE { key, seconds: sec })
+        }
+        "PERSIST" => {
+            if items.len() != 2 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'persist' command"
+                ));
+            }
+
+            let key = expect_bulk(&items, 1, "key")?;
+
+            Ok(Command::PERSIST { key })
         }
         "TTL" => {
             if items.len() != 2 {
@@ -145,6 +157,88 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
 
             Ok(Command::TTL { key })
         }
+        "TYPE" => {
+            if items.len() != 2 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'type' command"
+                ));
+            }
+
+            let key = expect_bulk(&items, 1, "key")?;
+
+            Ok(Command::TYPE { key })
+        }
+        "INFO" => {
+            if items.len() > 2 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'info' command"
+                ));
+            }
+
+            let section = if items.len() == 2 {
+                Some(expect_bulk(&items, 1, "section")?)
+            } else {
+                None
+            };
+
+            Ok(Command::INFO { section })
+        }
+        "HELLO" => {
+            if items.len() > 2 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'hello' command"
+                ));
+            }
+            let version = if items.len() == 2 {
+                let v = expect_bulk(&items, 1, "version")?;
+                let v = v.parse::<u8>().map_err(|_| anyhow::anyhow!("invalid version"))?;
+                Some(v)
+            } else {
+                None
+            };
+            Ok(Command::HELLO { version })
+        }
+        "COMMAND" => Ok(Command::COMMAND),
+        "CLIENT" => {
+            if items.len() >= 2 {
+                let sub = expect_bulk(&items, 1, "subcommand")?.to_uppercase();
+                if sub == "SETINFO" {
+                    return Ok(Command::ClientSetinfo);
+                }
+            }
+            Err(anyhow::anyhow!("unsupported client subcommand"))
+        }
+        "CONFIG" => {
+            if items.len() < 3 {
+                return Err(anyhow::anyhow!(
+                    "wrong number of arguments for 'config' command"
+                ));
+            }
+
+            let sub = expect_bulk(&items, 1, "subcommand")?.to_uppercase();
+            match sub.as_str() {
+                "GET" => {
+                    if items.len() != 3 {
+                        return Err(anyhow::anyhow!(
+                            "wrong number of arguments for 'config get' command"
+                        ));
+                    }
+                    let pattern = expect_bulk(&items, 2, "pattern")?;
+                    Ok(Command::ConfigGet { pattern })
+                }
+                "SET" => {
+                    if items.len() != 4 {
+                        return Err(anyhow::anyhow!(
+                            "wrong number of arguments for 'config set' command"
+                        ));
+                    }
+                    let key = expect_bulk(&items, 2, "parameter")?;
+                    let value = expect_bulk(&items, 3, "value")?;
+                    Ok(Command::ConfigSet { key, value })
+                }
+                _ => Err(anyhow::anyhow!("unsupported config subcommand")),
+            }
+        }
         "PTTL" => {
             if items.len() != 2 {
                 return Err(anyhow::anyhow!(
@@ -154,7 +248,7 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
 
             let key = expect_bulk(&items, 1, "key")?;
 
-            Ok(Command::TTL { key })
+            Ok(Command::PTTL { key })
         }
         "LPUSH" => {
             let len = items.len();
@@ -167,8 +261,8 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
             let key = expect_bulk(&items, 1, "key")?;
             let mut values: Vec<Vec<u8>> = Vec::new();
 
-            for i in 1..len {
-                let value = expect_bulk(&items, i, "key")?;
+            for i in 2..len {
+                let value = expect_bulk(&items, i, "value")?;
                 values.push(value.into_bytes());
             }
 
@@ -185,12 +279,12 @@ pub fn parse_command(items: Vec<RESP>) -> Result<Command> {
             let key = expect_bulk(&items, 1, "key")?;
             let mut values: Vec<Vec<u8>> = Vec::new();
 
-            for i in 1..len {
-                let value = expect_bulk(&items, i, "key")?;
+            for i in 2..len {
+                let value = expect_bulk(&items, i, "value")?;
                 values.push(value.into_bytes());
             }
 
-            Ok(Command::LPUSH { key, values })
+            Ok(Command::RPUSH { key, values })
         }
         "LPOP" => {
             let len = items.len();

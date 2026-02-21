@@ -10,29 +10,35 @@ pub async fn get_cmd(
     _heap: &mut Heap,
     socket: &mut TcpStream,
 ) -> Result<()> {
-    let db = _db.read().await;
-
-    match db.get(&key) {
-        Some(entry) => {
-            if is_expired(&entry) {
-                let mut heap = _heap.lock().await;
-
-                let val = MinHeap {
-                    key: key.clone(),
-                    expires_at: entry.expires_at.unwrap(),
-                };
-
-                heap.push(val);
-
-                socket.write_all(b"$-1\r\n").await?;
+    let mut expires_at = None;
+    let mut resp: Option<Vec<u8>> = None;
+    {
+        let db = _db.read().await;
+        match db.get(&key) {
+            Some(entry) => {
+                if is_expired(entry) {
+                    expires_at = entry.expires_at;
+                } else {
+                    resp = Some(entry.value.to_resp_bytes());
+                }
             }
+            None => {}
+        }
+    }
 
-            let resp = entry.value.to_resp_bytes();
-            socket.write_all(&resp).await?;
-        }
-        None => {
-            socket.write_all(b"$-1\r\n").await?;
-        }
+    if let Some(expires_at) = expires_at {
+        let mut heap = _heap.lock().await;
+        heap.push(MinHeap {
+            key: key.clone(),
+            expires_at,
+        });
+        socket.write_all(b"$-1\r\n").await?;
+        return Ok(());
+    }
+
+    match resp {
+        Some(bytes) => socket.write_all(&bytes).await?,
+        None => socket.write_all(b"$-1\r\n").await?,
     }
 
     Ok(())
