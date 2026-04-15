@@ -8,10 +8,10 @@ miniRedis follows a layered, async-first architecture built on Tokio's runtime. 
 
 ```
 ┌─────────────┐     TCP (RESP)     ┌──────────────────────────────┐
-│  redis-cli   │ ──────────────────▶│        miniRedis Server      │
-│  or any      │ ◀───────────────── │                              │
-│  RESP client │                    │  ┌────────────────────────┐  │
-└─────────────┘                    │  │  TcpListener (:6379)    │  │
+│  redis-cli  │ ──────────────────▶│        miniRedis Server      │
+│  or any     │ ◀───────────────── │                              │
+│  RESP client│                    │  ┌────────────────────────┐  │
+└─────────────┘                    │  │  TcpListener (:6379)   │  │
                                    │  └──────────┬─────────────┘  │
                                    │             │ accept         │
                                    │             ▼                │
@@ -23,7 +23,7 @@ miniRedis follows a layered, async-first architecture built on Tokio's runtime. 
                                    │   ┌─────────┼──────────┐     │
                                    │   ▼         ▼          ▼     │
                                    │ ┌────┐  ┌──────┐  ┌───────┐  │
-                                   │ │GET │  │SET   │  │LPUSH  │  │
+                                   │ │GET │  │ SET  │  │ LPUSH │  │
                                    │ └──┬─┘  └──┬───┘  └───┬───┘  │
                                    │    │       │          │      │
                                    │    └───────┼──────────┘      │

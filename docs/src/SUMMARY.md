@@ -12,4 +12,3 @@ miniRedis is a simplified, asynchronous, in-memory Redis-like server built with 
 - [Memory Management & Eviction](memory_eviction.md)
 - [Project Structure](project_structure.md)
 - [Getting Started](getting_started.md)
-- [Development Guide](development.md)
